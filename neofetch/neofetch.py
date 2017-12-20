@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import argparse
 import os
 import socket
 import subprocess
@@ -75,30 +76,43 @@ def get_cpu_spec():
     return _strip_output("sysctl", "-n", "machdep.cpu.brand_string")
 
 
-TEMPLATE = u"""
-\033[92m                    'c.           {hostname}\033[0m
-\033[92m                 ,xNMM.\033[0m           {hostname_sep}
-\033[92m               .OMMMMo\033[0m\033[93m            OS\033[0m: {os_version}
-\033[92m               OMMM0,\033[0m\033[93m             Kernel\033[0m: {kernel}
-\033[92m     .;loddo:' loolloddol;.\033[0m\033[93m       Model\033[0m: {model}
-\033[92m   cKMMMMMMMMMMNWMMMMMMMMMM0:\033[0m\033[93m     Shell\033[0m: {shell}
-\033[93m .KMMMMMMMMMMMMMMMMMMMMMMMWd.\033[0m\033[93m     Uptime\033[0m: {uptime}
-\033[93m XMMMMMMMMMMMMMMMMMMMMMMMX.\033[0m\033[93m       Resolution\033[0m: {size}
-\033[91m;MMMMMMMMMMMMMMMMMMMMMMMM:\033[0m\033[93m        CPU\033[0m: {cpu}
-\033[91m:MMMMMMMMMMMMMMMMMMMMMMMM:\033[0m\033[93m        Local IP\033[0m: {local_ip}
-\033[91m.MMMMMMMMMMMMMMMMMMMMMMMMX.\033[0m
-\033[91m kMMMMMMMMMMMMMMMMMMMMMMMMWd.\033[0m
-\033[95m .XMMMMMMMMMMMMMMMMMMMMMMMMMMk\033[0m
-\033[95m  .XMMMMMMMMMMMMMMMMMMMMMMMMK.\033[0m
-\033[94m    kMMMMMMMMMMMMMMMMMMMMMMd\033[0m
-\033[94m     ;KMMMMMMMWXXWMMMMMMMk.\033[0m
-\033[94m       .cooc,.    .,coo:.\033[0m
+TEMPLATE = u"""\
+\033[{color_1}m                    'c.           \033[{title_color}m{hostname}\033[0m
+\033[{color_1}m                 ,xNMM.           \033[0m{hostname_sep}
+\033[{color_1}m               .OMMMMo            \033[{subtitles_color}mOS\033[0m: {os_version}
+\033[{color_1}m               OMMM0,             \033[{subtitles_color}mKernel\033[0m: {kernel}
+\033[{color_1}m     .;loddo:' loolloddol;.       \033[{subtitles_color}mModel\033[0m: {model}
+\033[{color_1}m   cKMMMMMMMMMMNWMMMMMMMMMM0:m    \033[{subtitles_color}mShell\033[0m: {shell}
+\033[{color_2}m .KMMMMMMMMMMMMMMMMMMMMMMMWd.     \033[{subtitles_color}mUptime\033[0m: {uptime}
+\033[{color_2}m XMMMMMMMMMMMMMMMMMMMMMMMX.       \033[{subtitles_color}mResolution\033[0m: {size}
+\033[{color_3}m;MMMMMMMMMMMMMMMMMMMMMMMM:        \033[{subtitles_color}mCPU\033[0m: {cpu}
+\033[{color_3}m:MMMMMMMMMMMMMMMMMMMMMMMM:        \033[{subtitles_color}mLocal IP\033[0m: {local_ip}
+\033[{color_3}m.MMMMMMMMMMMMMMMMMMMMMMMMX.\033[0m
+\033[{color_3}m kMMMMMMMMMMMMMMMMMMMMMMMMWd.\033[0m
+\033[{color_4}m .XMMMMMMMMMMMMMMMMMMMMMMMMMMk\033[0m
+\033[{color_4}m  .XMMMMMMMMMMMMMMMMMMMMMMMMK.\033[0m
+\033[{color_5}m    kMMMMMMMMMMMMMMMMMMMMMMd\033[0m
+\033[{color_5}m     ;KMMMMMMMWXXWMMMMMMMk.\033[0m
+\033[{color_5}m       .cooc,.    .,coo:.\033[0m
 
-                                  \033[30m███\033[0m\033[91m███\033[0m\033[92m███\033[0m\033[93m███\033[0m\033[94m███\033[0m\033[95m███\033[0m\033[96m███\033[0m\033[97m███\033[0m
+                                  \033[30m███\033[0m\033[91m███\033[0m\033[92m███\033[0m\033[93m███\033[0m\033[94m███\
+\033[0m\033[95m███\033[0m\033[96m███\033[0m\033[97m███\033[0m\
 """
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    group = parser.add_argument_group('colors')
+    group.add_argument('--title', type=int, default=92, help='Default: 92')
+    group.add_argument('--sub-title', type=int, default=93, help='Default: 93')
+    group.add_argument('--color-1', type=int, default=92, help='Default: 92')
+    group.add_argument('--color-2', type=int, default=93, help='Default: 92')
+    group.add_argument('--color-3', type=int, default=91, help='Default: 92')
+    group.add_argument('--color-4', type=int, default=95, help='Default: 92')
+    group.add_argument('--color-5', type=int, default=94, help='Default: 92')
+
+    args = parser.parse_args()
+
     hostname = get_hostname()
     return TEMPLATE.format(
         hostname=hostname,
@@ -110,7 +124,14 @@ def main():
         uptime=get_uptime(),
         size=get_screen_size(),
         cpu=get_cpu_spec(),
-        local_ip=get_local_ip()
+        local_ip=get_local_ip(),
+        title_color=args.title,
+        subtitles_color=args.sub_title,
+        color_1=args.color_1,
+        color_2=args.color_2,
+        color_3=args.color_3,
+        color_4=args.color_4,
+        color_5=args.color_5
     )
 
 

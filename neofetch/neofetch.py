@@ -39,9 +39,12 @@ def _strip_output(*command, **kwargs):
 
 
 def get_local_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(("8.8.8.8", 80))
-    return s.getsockname()[0]
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        return s.getsockname()[0]
+    except socket.error:
+        return ''
 
 
 def get_hostname():
@@ -76,6 +79,10 @@ def get_cpu_spec():
     return _strip_output("sysctl", "-n", "machdep.cpu.brand_string")
 
 
+def get_battery_percentage():
+    return _strip_output('pmset -g batt | grep -Eo "\d+%"', shell=True)
+
+
 TEMPLATE = u"""\
 \033[{color_1}m                    'c.           \033[{title_color}m{hostname}\033[0m
 \033[{color_1}m                 ,xNMM.           \033[0m{hostname_sep}
@@ -87,13 +94,13 @@ TEMPLATE = u"""\
 \033[{color_2}m XMMMMMMMMMMMMMMMMMMMMMMMX.       \033[{subtitles_color}mResolution\033[0m: {size}
 \033[{color_3}m;MMMMMMMMMMMMMMMMMMMMMMMM:        \033[{subtitles_color}mCPU\033[0m: {cpu}
 \033[{color_3}m:MMMMMMMMMMMMMMMMMMMMMMMM:        \033[{subtitles_color}mLocal IP\033[0m: {local_ip}
-\033[{color_3}m.MMMMMMMMMMMMMMMMMMMMMMMMX.\033[0m
-\033[{color_3}m kMMMMMMMMMMMMMMMMMMMMMMMMWd.\033[0m
-\033[{color_4}m .XMMMMMMMMMMMMMMMMMMMMMMMMMMk\033[0m
-\033[{color_4}m  .XMMMMMMMMMMMMMMMMMMMMMMMMK.\033[0m
-\033[{color_5}m    kMMMMMMMMMMMMMMMMMMMMMMd\033[0m
-\033[{color_5}m     ;KMMMMMMMWXXWMMMMMMMk.\033[0m
-\033[{color_5}m       .cooc,.    .,coo:.\033[0m
+\033[{color_3}m.MMMMMMMMMMMMMMMMMMMMMMMMX.       \033[{subtitles_color}mBattery\033[0m: {battery_percentage}
+\033[{color_3}m kMMMMMMMMMMMMMMMMMMMMMMMMWd.
+\033[{color_4}m .XMMMMMMMMMMMMMMMMMMMMMMMMMMk
+\033[{color_4}m  .XMMMMMMMMMMMMMMMMMMMMMMMMK.
+\033[{color_5}m    kMMMMMMMMMMMMMMMMMMMMMMd
+\033[{color_5}m     ;KMMMMMMMWXXWMMMMMMMk.
+\033[{color_5}m       .cooc,.    .,coo:.
 
                                   \033[30m███\033[0m\033[91m███\033[0m\033[92m███\033[0m\033[93m███\033[0m\033[94m███\
 \033[0m\033[95m███\033[0m\033[96m███\033[0m\033[97m███\033[0m\
@@ -125,6 +132,7 @@ def main():
         size=get_screen_size(),
         cpu=get_cpu_spec(),
         local_ip=get_local_ip(),
+        battery_percentage=get_battery_percentage(),
         title_color=args.title,
         subtitles_color=args.sub_title,
         color_1=args.color_1,

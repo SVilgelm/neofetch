@@ -107,16 +107,17 @@ TEMPLATE = u"""\
 """
 
 
+def _add_color_argument(parser, name, default):
+    value = int(os.environ.get('NEOFETCH_%s' % name.upper().replace('-', '_'), default))
+    parser.add_argument('--%s' % name, type=int, default=value, help='Default: %d' % value)
+
+
 def main():
     parser = argparse.ArgumentParser()
     group = parser.add_argument_group('colors')
-    group.add_argument('--title', type=int, default=92, help='Default: 92')
-    group.add_argument('--sub-title', type=int, default=93, help='Default: 93')
-    group.add_argument('--color-1', type=int, default=92, help='Default: 92')
-    group.add_argument('--color-2', type=int, default=93, help='Default: 92')
-    group.add_argument('--color-3', type=int, default=91, help='Default: 92')
-    group.add_argument('--color-4', type=int, default=95, help='Default: 92')
-    group.add_argument('--color-5', type=int, default=94, help='Default: 92')
+    for name, default in (('title', 92), ('sub-title', 93), ('color-1', 92), ('color-2', 93), ('color-3', 91),
+                         ('color-4', 95), ('color-5', 94)):
+        _add_color_argument(group, name, default)
 
     args = parser.parse_args()
 

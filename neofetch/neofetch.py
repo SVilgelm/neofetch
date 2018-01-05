@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+import multiprocessing
 import os
 import socket
 import subprocess
@@ -22,6 +23,25 @@ class CommandProcessor(object):
 
 class BaseCommand(object):
     def run(self):
+        raise NotImplementedError()
+
+
+class BaseMultiprocessingCommand(BaseCommand):
+    def __init__(self):
+        self.parent_conn, self.child_conn = multiprocessing.Pipe()
+        self.proc = multiprocessing.Process(
+            target=self.target, args=(self.child_conn, ))
+        self.proc.start()
+
+    def target(self, conn):
+        res = self.func()
+        conn.send(res)
+
+    def run(self):
+        self.proc.join()
+        return self.parent_conn.recv()
+
+    def func(self):
         raise NotImplementedError()
 
 
@@ -118,8 +138,8 @@ class BatteryPercentage(BaseSubprocessCommand):
         return {"battery_percentage": output}
 
 
-class LocalIP(BaseCommand):
-    def run(self):
+class LocalIP(BaseMultiprocessingCommand):
+    def func(self):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))

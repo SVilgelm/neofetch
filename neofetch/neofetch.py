@@ -10,77 +10,133 @@ import sys
 IS_PY3 = sys.version_info >= (3, 0)
 
 
-_system_profiler_cache = {}
+class CommandProcessor(object):
+    def __init__(self, *commands):
+        self.commands = [c() for c in commands]
+
+    def parse(self):
+        result = {}
+        for c in self.commands:
+            result.update(c.run())
+        return result
 
 
-def _system_profiler(resource, name):
-    global  _system_profiler_cache
-    if resource not in _system_profiler_cache:
-        proc = subprocess.Popen(["/usr/sbin/system_profiler", resource], stdout=subprocess.PIPE)
-        stdout, _stderr = proc.communicate()
+class BaseCommand(object):
+    def run(self):
+        raise NotImplementedError()
+
+
+class BaseSubprocessCommand(BaseCommand):
+    command = None
+    shell = False
+
+    def __init__(self):
+        self.proc = subprocess.Popen(self.command, shell=self.shell, stdout=subprocess.PIPE)
+
+    @staticmethod
+    def strip_output(output):
         if IS_PY3:
-            stdout = str(stdout, "utf-8")
+            output = str(output, "utf-8")
+        return output.strip()
+
+    @staticmethod
+    def parse(output):
+        raise NotImplementedError()
+
+    def run(self):
+        output, _ = self.proc.communicate()
+        output = self.strip_output(output)
+        return self.parse(output)
+
+
+class SystemProfilerBase(BaseSubprocessCommand):
+    @staticmethod
+    def parse(output):
         res = {}
-        for line in stdout.splitlines():
+        for line in output.splitlines():
             line = line.strip().split(': ')
             if len(line) > 1:
                 res[line[0]] = line[1]
-        _system_profiler_cache[resource] = res
-    return _system_profiler_cache[resource][name]
+        return res
 
 
-def _strip_output(*command, **kwargs):
-    kwargs.setdefault('stdout', subprocess.PIPE)
-    proc = subprocess.Popen(command, **kwargs)
-    stdout, _stderr = proc.communicate()
-    if IS_PY3:
-        stdout = str(stdout, "utf-8")
-    return stdout.strip()
+class SystemProfilerSoftware(SystemProfilerBase):
+    command = ["/usr/sbin/system_profiler", "SPSoftwareDataType"]
+
+    @staticmethod
+    def parse(output):
+        res = super(SystemProfilerSoftware, SystemProfilerSoftware).parse(output)
+        return {
+            "os_version": res["System Version"],
+            "uptime": res["Time since boot"]
+        }
 
 
-def get_local_ip():
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        return s.getsockname()[0]
-    except socket.error:
-        return ''
+class SystemProfilerHardware(SystemProfilerBase):
+    command = ["/usr/sbin/system_profiler", "SPHardwareDataType"]
+
+    @staticmethod
+    def parse(output):
+        res = super(SystemProfilerHardware, SystemProfilerHardware).parse(output)
+        return {
+            "model": res["Model Identifier"]
+        }
 
 
-def get_hostname():
-    return socket.gethostname()
+class SystemProfilerDisplays(SystemProfilerBase):
+    command = ["/usr/sbin/system_profiler", "SPDisplaysDataType"]
+
+    @staticmethod
+    def parse(output):
+        res = super(SystemProfilerDisplays, SystemProfilerDisplays).parse(output)
+        return {
+            "size": res["Resolution"]
+        }
 
 
-def get_os_version():
-    return _system_profiler("SPSoftwareDataType", "System Version")
+class Kernel(BaseSubprocessCommand):
+    command = ["uname", "-r"]
+
+    @staticmethod
+    def parse(output):
+        return {"kernel": output}
 
 
-def get_model():
-    return _system_profiler("SPHardwareDataType", "Model Identifier")
+class CPU(BaseSubprocessCommand):
+    command = ["sysctl", "-n", "machdep.cpu.brand_string"]
+
+    @staticmethod
+    def parse(output):
+        return {"cpu": output}
 
 
-def get_screen_size():
-    return _system_profiler("SPDisplaysDataType", "Resolution")
+class BatteryPercentage(BaseSubprocessCommand):
+    command = 'pmset -g batt | grep -Eo "\d+%"'
+    shell = True
+
+    @staticmethod
+    def parse(output):
+        return {"battery_percentage": output}
 
 
-def get_uptime():
-    return _system_profiler("SPSoftwareDataType", "Time since boot")
+class LocalIP(BaseCommand):
+    def run(self):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            return {"local_ip": s.getsockname()[0]}
+        except socket.error:
+            return {"local_ip": ""}
 
 
-def get_shell():
-    return os.environ.get('SHELL', '')
+class HostName(BaseCommand):
+    def run(self):
+        return {"hostname": socket.gethostname()}
 
 
-def get_kernel():
-    return _strip_output("uname", "-r")
-
-
-def get_cpu_spec():
-    return _strip_output("sysctl", "-n", "machdep.cpu.brand_string")
-
-
-def get_battery_percentage():
-    return _strip_output('pmset -g batt | grep -Eo "\d+%"', shell=True)
+class Shell(BaseCommand):
+    def run(self):
+        return {"shell": os.environ.get('SHELL', '')}
 
 
 TEMPLATE = u"""\
@@ -121,19 +177,20 @@ def main():
 
     args = parser.parse_args()
 
-    hostname = get_hostname()
-    return TEMPLATE.format(
-        hostname=hostname,
-        hostname_sep="-" * len(hostname),
-        os_version=get_os_version(),
-        kernel=get_kernel(),
-        model=get_model(),
-        shell=get_shell(),
-        uptime=get_uptime(),
-        size=get_screen_size(),
-        cpu=get_cpu_spec(),
-        local_ip=get_local_ip(),
-        battery_percentage=get_battery_percentage(),
+    cp = CommandProcessor(
+        BatteryPercentage,
+        CPU,
+        HostName,
+        Kernel,
+        LocalIP,
+        Shell,
+        SystemProfilerSoftware,
+        SystemProfilerDisplays,
+        SystemProfilerHardware,
+    )
+    params = cp.parse()
+    params.update(dict(
+        hostname_sep="-" * len(params["hostname"]),
         title_color=args.title,
         subtitles_color=args.sub_title,
         color_1=args.color_1,
@@ -141,7 +198,8 @@ def main():
         color_3=args.color_3,
         color_4=args.color_4,
         color_5=args.color_5
-    )
+    ))
+    return TEMPLATE.format(**params)
 
 
 if __name__ == '__main__':

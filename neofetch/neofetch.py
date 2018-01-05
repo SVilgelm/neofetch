@@ -6,7 +6,6 @@ import socket
 import subprocess
 import sys
 
-
 IS_PY3 = sys.version_info >= (3, 0)
 
 
@@ -31,7 +30,8 @@ class BaseSubprocessCommand(BaseCommand):
     shell = False
 
     def __init__(self):
-        self.proc = subprocess.Popen(self.command, shell=self.shell, stdout=subprocess.PIPE)
+        self.proc = subprocess.Popen(
+            self.command, shell=self.shell, stdout=subprocess.PIPE)
 
     @staticmethod
     def strip_output(output):
@@ -65,7 +65,8 @@ class SystemProfilerSoftware(SystemProfilerBase):
 
     @staticmethod
     def parse(output):
-        res = super(SystemProfilerSoftware, SystemProfilerSoftware).parse(output)
+        res = super(SystemProfilerSoftware,
+                    SystemProfilerSoftware).parse(output)
         return {
             "os_version": res["System Version"],
             "uptime": res["Time since boot"]
@@ -77,10 +78,9 @@ class SystemProfilerHardware(SystemProfilerBase):
 
     @staticmethod
     def parse(output):
-        res = super(SystemProfilerHardware, SystemProfilerHardware).parse(output)
-        return {
-            "model": res["Model Identifier"]
-        }
+        res = super(SystemProfilerHardware,
+                    SystemProfilerHardware).parse(output)
+        return {"model": res["Model Identifier"]}
 
 
 class SystemProfilerDisplays(SystemProfilerBase):
@@ -88,10 +88,9 @@ class SystemProfilerDisplays(SystemProfilerBase):
 
     @staticmethod
     def parse(output):
-        res = super(SystemProfilerDisplays, SystemProfilerDisplays).parse(output)
-        return {
-            "size": res["Resolution"]
-        }
+        res = super(SystemProfilerDisplays,
+                    SystemProfilerDisplays).parse(output)
+        return {"size": res["Resolution"]}
 
 
 class Kernel(BaseSubprocessCommand):
@@ -164,15 +163,19 @@ TEMPLATE = u"""\
 
 
 def _add_color_argument(parser, name, default):
-    value = int(os.environ.get('NEOFETCH_%s' % name.upper().replace('-', '_'), default))
-    parser.add_argument('--%s' % name, type=int, default=value, help='Default: %d' % value)
+    value = int(
+        os.environ.get('NEOFETCH_%s' % name.upper().replace('-', '_'),
+                       default))
+    parser.add_argument(
+        '--%s' % name, type=int, default=value, help='Default: %d' % value)
 
 
 def main():
     parser = argparse.ArgumentParser()
     group = parser.add_argument_group('colors')
-    for name, default in (('title', 92), ('sub-title', 93), ('color-1', 92), ('color-2', 93), ('color-3', 91),
-                         ('color-4', 95), ('color-5', 94)):
+    for name, default in (('title', 92), ('sub-title', 93), ('color-1', 92),
+                          ('color-2', 93), ('color-3', 91), ('color-4', 95),
+                          ('color-5', 94)):
         _add_color_argument(group, name, default)
 
     args = parser.parse_args()
@@ -189,16 +192,16 @@ def main():
         SystemProfilerHardware,
     )
     params = cp.parse()
-    params.update(dict(
-        hostname_sep="-" * len(params["hostname"]),
-        title_color=args.title,
-        subtitles_color=args.sub_title,
-        color_1=args.color_1,
-        color_2=args.color_2,
-        color_3=args.color_3,
-        color_4=args.color_4,
-        color_5=args.color_5
-    ))
+    params.update(
+        dict(
+            hostname_sep="-" * len(params["hostname"]),
+            title_color=args.title,
+            subtitles_color=args.sub_title,
+            color_1=args.color_1,
+            color_2=args.color_2,
+            color_3=args.color_3,
+            color_4=args.color_4,
+            color_5=args.color_5))
     return TEMPLATE.format(**params)
 
 
